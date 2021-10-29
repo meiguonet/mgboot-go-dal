@@ -11,28 +11,37 @@ import (
 
 var redisPool *redis.Pool
 
-func InitRedisPool() {
-	settings := AppConf.GetMap("redis")
-	host := castx.ToString(settings["host"])
+func InitRedisPool(settings ...map[string]interface{}) {
+	var _settings map[string]interface{}
+
+	if len(settings) > 0 && len(settings[0]) > 0 {
+		_settings = settings[0]
+	}
+
+	if len(_settings) < 1 {
+		_settings = AppConf.GetMap("redis")
+	}
+
+	host := castx.ToString(_settings["host"])
 
 	if host == "" {
 		host = "127.0.0.1"
 	}
 
-	port := castx.ToInt(settings["port"])
+	port := castx.ToInt(_settings["port"])
 
 	if port < 1 {
 		port = 6379
 	}
 
 	address := fmt.Sprintf("%s:%d", host, port)
-	connectTimeout := castx.ToDuration(settings["connectTimeout"])
+	connectTimeout := castx.ToDuration(_settings["connectTimeout"])
 
 	if connectTimeout <= 0 {
 		connectTimeout = time.Second
 	}
 
-	readTimeout := castx.ToDuration(settings["readTimeout"])
+	readTimeout := castx.ToDuration(_settings["readTimeout"])
 
 	if readTimeout <= 0 {
 		readTimeout = 2 * time.Second
@@ -42,25 +51,25 @@ func InitRedisPool() {
 		redis.DialConnectTimeout(connectTimeout),
 	}
 
-	password := castx.ToString(settings["password"])
+	password := castx.ToString(_settings["password"])
 
 	if password != "" {
 		dialOptions = append(dialOptions, redis.DialPassword(password))
 	}
 
-	database := castx.ToInt(settings["database"])
+	database := castx.ToInt(_settings["database"])
 
 	if database > 0 {
 		dialOptions = append(dialOptions, redis.DialDatabase(database))
 	}
 
-	maxIdle := castx.ToInt(settings["maxIdle"])
+	maxIdle := castx.ToInt(_settings["maxIdle"])
 
 	if maxIdle < 1 {
 		maxIdle = 10
 	}
 
-	maxActive := castx.ToInt(settings["maxActive"])
+	maxActive := castx.ToInt(_settings["maxActive"])
 
 	if maxActive < 1 {
 		maxActive = 20
@@ -70,13 +79,13 @@ func InitRedisPool() {
 		maxActive = maxIdle + 10
 	}
 
-	maxLifetime := castx.ToDuration(settings["maxLifetime"])
+	maxLifetime := castx.ToDuration(_settings["maxLifetime"])
 
 	if maxLifetime <= 0 {
 		maxLifetime = 24 * time.Hour
 	}
 
-	idleTimeout := castx.ToDuration(settings["idleTimeout"])
+	idleTimeout := castx.ToDuration(_settings["idleTimeout"])
 
 	if idleTimeout <= 0 {
 		idleTimeout = maxLifetime / 2

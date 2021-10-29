@@ -11,9 +11,18 @@ import (
 
 var dbPool *sql.DB
 
-func InitDbPool() {
-	settings := AppConf.GetMap("datasource")
-	dsn := buildDsn(settings)
+func InitDbPool(settings ...map[string]interface{}) {
+	var _settings map[string]interface{}
+
+	if len(settings) > 0 && len(settings[0]) > 0 {
+		_settings = settings[0]
+	}
+
+	if len(_settings) < 1 {
+		_settings = AppConf.GetMap("datasource")
+	}
+
+	dsn := buildDsn(_settings)
 	var err error
 	dbPool, err = sql.Open("mysql", dsn)
 
@@ -21,13 +30,13 @@ func InitDbPool() {
 		panic(err)
 	}
 
-	maxIdle := castx.ToInt(settings["maxIdle"])
+	maxIdle := castx.ToInt(_settings["maxIdle"])
 
 	if maxIdle < 1 {
 		maxIdle = 10
 	}
 
-	maxOpen := castx.ToInt(settings["maxOpen"])
+	maxOpen := castx.ToInt(_settings["maxOpen"])
 
 	if maxOpen < 1 {
 		maxOpen = 20
@@ -37,7 +46,7 @@ func InitDbPool() {
 		maxOpen = maxIdle + 10
 	}
 
-	maxLifetime := castx.ToDuration(settings["maxLifeTime"])
+	maxLifetime := castx.ToDuration(_settings["maxLifeTime"])
 
 	if maxLifetime <= 0 {
 		maxLifetime = 30 * time.Minute

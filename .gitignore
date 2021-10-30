@@ -15,5 +15,7 @@
 # vendor/
 
 .idea
+test
+main.go
 go.sum
 !.gitkeep

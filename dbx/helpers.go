@@ -73,10 +73,18 @@ func parseOrderBy(orderBy string) string {
 	return quote(parts[0]) + " " + strings.ToUpper(parts[1])
 }
 
-func buildScanFields(rs *sql.Rows) ([]*scanField, []interface{}) {
+func buildScanFields(rs *sql.Rows) (scanFields []*scanField, scanArgs []interface{}) {
+	defer func() {
+		if r := recover(); r != nil {
+			scanFields = make([]*scanField, 0)
+			scanArgs = make([]interface{}, 0)
+		}
+	}()
+
 	columnTypes, _ := rs.ColumnTypes()
-	scanFields := make([]*scanField, 0, len(columnTypes))
-	scanArgs := make([]interface{}, 0, len(columnTypes))
+	n1 := len(columnTypes)
+	scanFields = make([]*scanField, n1, n1)
+	scanArgs = make([]interface{}, n1, n1)
 
 	for idx, columnType := range columnTypes {
 		scanType := columnType.ScanType().Name()
@@ -179,7 +187,7 @@ func buildScanFields(rs *sql.Rows) ([]*scanField, []interface{}) {
 		scanArgs[idx] = &field.InterfaceVal
 	}
 
-	return scanFields, scanArgs
+	return
 }
 
 func scanIntoMapList(rs *sql.Rows) ([]map[string]interface{}, error) {
@@ -212,11 +220,27 @@ func scanIntoMap(rs *sql.Rows) (map[string]interface{}, error) {
 
 	columnTypes, err := rs.ColumnTypes()
 
-	if err != nil {
+	if err != nil || len(columnTypes) != len(columnNames) {
 		return map[string]interface{}{}, err
 	}
 
 	scanFields, scanArgs := buildScanFields(rs)
+
+	if len(scanFields) < 1 || len(scanArgs) < 1 || len(scanFields) != len(scanArgs) || len(scanFields) != len(columnNames) {
+		return map[string]interface{}{}, NewDbException("scan error")
+	}
+
+	for _, scanField := range scanFields {
+		if scanField == nil {
+			return map[string]interface{}{}, NewDbException("scan error")
+		}
+	}
+
+	for _, scanArg := range scanArgs {
+		if scanArg == nil {
+			return map[string]interface{}{}, NewDbException("scan error")
+		}
+	}
 
 	if err := rs.Scan(scanArgs...); err != nil {
 		return map[string]interface{}{}, err
@@ -344,6 +368,22 @@ func scanIntoModel(rs *sql.Rows, model interface{}) error {
 	}
 
 	scanFields, scanArgs := buildScanFields(rs)
+
+	if len(scanFields) < 1 || len(scanArgs) < 1 || len(scanFields) != len(scanArgs) || len(scanFields) != len(columnNames) {
+		return NewDbException("scan error")
+	}
+
+	for _, scanField := range scanFields {
+		if scanField == nil {
+			return NewDbException("scan error")
+		}
+	}
+
+	for _, scanArg := range scanArgs {
+		if scanArg == nil {
+			return NewDbException("scan error")
+		}
+	}
 
 	if err := rs.Scan(scanArgs...); err != nil {
 		return err
